@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { CheckCircle2, Clock, XCircle, Printer, RotateCcw } from 'lucide-react'
-import axios from 'axios'
+import { getVisitStatus } from '../../services/api'
 
 function Result({ result, onReset }) {
   const [status, setStatus] = useState(result.status)
@@ -11,7 +11,7 @@ function Result({ result, onReset }) {
     if (status === 'PENDING') {
       interval = setInterval(async () => {
         try {
-          const res = await axios.get(`/api/visits/${visitId}/status`)
+          const res = await getVisitStatus(visitId)
           if (res.data.status !== 'PENDING') {
             setStatus(res.data.status)
             clearInterval(interval)

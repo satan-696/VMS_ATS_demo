@@ -25,3 +25,5 @@ dist-ssr
 
 # Signzy Secrets
 vms-demo/backend/.env
+vms-demo/admin/.env
+vms-demo/kiosk/.env
