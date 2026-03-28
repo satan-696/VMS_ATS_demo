@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --gov-blue: #1a3c6e;
+  --gov-blue-light: #2a5298;
+  --gov-blue-bg: #eef2f9;
+  --gov-white: #ffffff;
+  --gov-orange: #e07b00;
+  --gov-green: #1a7a4a;
+  --gov-red: #c0392b;
+  --gov-amber: #c47d00;
+  --gov-gray: #f4f6f9;
+  --gov-border: #ccd6e8;
+  --gov-text: #1a1a2e;
+  --gov-text-secondary: #4a5568;
+}
+
+body {
+  font-family: 'Noto Sans', sans-serif;
+  background-color: var(--gov-blue-bg);
+  color: var(--gov-text);
+  margin: 0;
+  overflow: hidden;
+}
+
+.admin-card {
+  background-color: var(--gov-white);
+  border: 1px solid var(--gov-border);
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--gov-border);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+/* Hover effects for dashboard metrics */
+.stat-card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stat-card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  border-color: var(--gov-blue-light);
+}
