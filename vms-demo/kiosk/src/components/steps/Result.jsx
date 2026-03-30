@@ -5,6 +5,7 @@ import { getVisitStatus } from '../../services/api'
 function Result({ result, onReset }) {
   const [status, setStatus] = useState(result.status)
   const [visitId, setVisitId] = useState(result.visitId)
+  const [isPrinting, setIsPrinting] = useState(false)
   const visitor = result?.visitor || {}
 
   useEffect(() => {
@@ -25,6 +26,12 @@ function Result({ result, onReset }) {
     return () => clearInterval(interval)
   }, [status, visitId])
 
+  useEffect(() => {
+    const onAfterPrint = () => setIsPrinting(false)
+    window.addEventListener('afterprint', onAfterPrint)
+    return () => window.removeEventListener('afterprint', onAfterPrint)
+  }, [])
+
   const baseCard = 'glass-panel w-full max-w-3xl overflow-hidden border-t-4'
   const livePhoto = visitor.live_photo_base64 || visitor.reference_photo_base64 || ''
 
@@ -37,117 +44,69 @@ function Result({ result, onReset }) {
       .replace(/'/g, '&#39;')
 
   const handlePrintPass = () => {
-    const printWindow = window.open('', '_blank', 'width=900,height=700,noopener,noreferrer')
-    if (!printWindow) {
-      alert('Popup blocked. Please allow popups to print the visitor pass.')
-      return
-    }
-
-    const issuedAt = new Date().toLocaleString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-
-    const qrData = encodeURIComponent(`VISIT:${visitId}|NAME:${visitor.name || ''}|STATUS:${status}`)
-
-    const passHtml = `
-      <!doctype html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>Visitor Pass - ${escapeHtml(visitId)}</title>
-          <style>
-            * { box-sizing: border-box; }
-            body { margin: 0; padding: 24px; font-family: Arial, sans-serif; background: #f3f4f6; color: #111827; }
-            .pass {
-              width: 860px;
-              max-width: 100%;
-              margin: 0 auto;
-              background: #ffffff;
-              border: 2px solid #0f172a;
-              border-radius: 12px;
-              overflow: hidden;
-            }
-            .header {
-              background: #0f172a;
-              color: #ffffff;
-              padding: 14px 20px;
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-            }
-            .title { font-size: 20px; font-weight: 700; letter-spacing: 0.08em; }
-            .row { display: grid; grid-template-columns: 170px 1fr 150px; gap: 20px; padding: 20px; align-items: start; }
-            .photo, .qr { border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; }
-            .photo { width: 170px; height: 210px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-            .photo img { width: 100%; height: 100%; object-fit: cover; }
-            .placeholder { font-size: 12px; color: #64748b; text-align: center; padding: 10px; }
-            .details { display: grid; gap: 10px; font-size: 14px; }
-            .label { color: #475569; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 2px; }
-            .value { font-weight: 700; color: #0f172a; }
-            .qr { padding: 8px; width: 150px; height: 150px; display: flex; align-items: center; justify-content: center; }
-            .qr img { width: 132px; height: 132px; }
-            .footer {
-              border-top: 1px dashed #94a3b8;
-              padding: 12px 20px;
-              font-size: 12px;
-              color: #334155;
-              display: flex;
-              justify-content: space-between;
-            }
-            @media print {
-              body { background: #fff; padding: 0; }
-              .pass { border-radius: 0; width: 100%; border-width: 1px; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="pass">
-            <div class="header">
-              <div class="title">ATS VISITOR PASS</div>
-              <div>${escapeHtml(visitId)}</div>
-            </div>
-            <div class="row">
-              <div class="photo">
-                ${livePhoto ? `<img src="${escapeHtml(livePhoto)}" alt="Live Visitor Photo" />` : '<div class="placeholder">No live photo captured</div>'}
-              </div>
-              <div class="details">
-                <div><div class="label">Visitor Name</div><div class="value">${escapeHtml(visitor.name || '-')}</div></div>
-                <div><div class="label">Aadhaar</div><div class="value">${escapeHtml(visitor.aadhaarMasked || '-')}</div></div>
-                <div><div class="label">Purpose</div><div class="value">${escapeHtml(visitor.purpose || '-')}</div></div>
-                <div><div class="label">Department</div><div class="value">${escapeHtml(visitor.department || '-')}</div></div>
-                <div><div class="label">Host Officer</div><div class="value">${escapeHtml(visitor.host_officer || '-')}</div></div>
-                <div><div class="label">Duration</div><div class="value">${escapeHtml(visitor.duration || '-')}</div></div>
-              </div>
-              <div class="qr">
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${qrData}" alt="QR Code" />
-              </div>
-            </div>
-            <div class="footer">
-              <div><strong>Status:</strong> ${escapeHtml(status)}</div>
-              <div><strong>Issued:</strong> ${escapeHtml(issuedAt)}</div>
-            </div>
-          </div>
-          <script>
-            window.onload = function() {
-              window.print();
-              setTimeout(function() { window.close(); }, 200);
-            };
-          </script>
-        </body>
-      </html>
-    `
-
-    printWindow.document.open()
-    printWindow.document.write(passHtml)
-    printWindow.document.close()
+    setIsPrinting(true)
+    setTimeout(() => {
+      window.print()
+    }, 100)
   }
 
   return (
     <div className="flex min-h-[60vh] w-full flex-col items-center justify-center">
+      <style>{`
+        @media print {
+          body * { visibility: hidden !important; }
+          #kiosk-print-pass, #kiosk-print-pass * { visibility: visible !important; }
+          #kiosk-print-pass {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            display: block !important;
+            opacity: 1 !important;
+          }
+        }
+      `}</style>
+
+      {status === 'APPROVED' && (
+        <div
+          id="kiosk-print-pass"
+          className="bg-white text-slate-900"
+          style={{
+            position: 'fixed',
+            left: '-10000px',
+            top: 0,
+            width: '900px',
+            opacity: isPrinting ? 1 : 0
+          }}
+        >
+          <div style={{ border: '2px solid #0f172a', margin: '24px', borderRadius: '12px', overflow: 'hidden' }}>
+            <div style={{ background: '#0f172a', color: '#fff', padding: '14px 20px', display: 'flex', justifyContent: 'space-between' }}>
+              <strong style={{ letterSpacing: '0.08em' }}>ATS VISITOR PASS</strong>
+              <span>{visitId}</span>
+            </div>
+            <div style={{ padding: '20px', display: 'grid', gridTemplateColumns: '170px 1fr', gap: '18px' }}>
+              <div style={{ border: '1px solid #cbd5e1', borderRadius: '8px', height: '210px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {livePhoto ? (
+                  <img src={livePhoto} alt="Live Visitor" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <span style={{ fontSize: '12px', color: '#64748b' }}>No live photo captured</span>
+                )}
+              </div>
+              <div style={{ fontSize: '14px', lineHeight: 1.5 }}>
+                <div><strong>Visitor:</strong> {visitor.name || '-'}</div>
+                <div><strong>Aadhaar:</strong> {visitor.aadhaarMasked || '-'}</div>
+                <div><strong>Purpose:</strong> {visitor.purpose || '-'}</div>
+                <div><strong>Department:</strong> {visitor.department || '-'}</div>
+                <div><strong>Host Officer:</strong> {visitor.host_officer || '-'}</div>
+                <div><strong>Duration:</strong> {visitor.duration || '-'}</div>
+                <div><strong>Status:</strong> {status}</div>
+                <div><strong>Pass ID:</strong> {visitId || '-'}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {status === 'APPROVED' ? (
         <div className={`${baseCard} border-ats-success shadow-[0_0_50px_rgba(16,185,129,0.15)]`}>
           <div className="flex flex-col gap-3 border-b border-ats-success/10 bg-ats-success/5 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6 lg:p-8">
