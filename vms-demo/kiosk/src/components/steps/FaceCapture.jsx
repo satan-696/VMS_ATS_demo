@@ -12,6 +12,12 @@ function FaceCapture({ onCapture, onSkip }) {
     return () => stopCamera()
   }, [])
 
+  useEffect(() => {
+    if (stream && videoRef.current) {
+      videoRef.current.srcObject = stream
+    }
+  }, [stream])
+
   const startCamera = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
@@ -25,7 +31,12 @@ function FaceCapture({ onCapture, onSkip }) {
   }
 
   const stopCamera = () => {
-    if (stream) stream.getTracks().forEach((track) => track.stop())
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop())
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+    }
   }
 
   const handleCapture = () => {
@@ -43,7 +54,40 @@ function FaceCapture({ onCapture, onSkip }) {
   }
 
   const takePhoto = () => {
-    onCapture('data:image/jpeg;base64,...')
+    const video = videoRef.current
+    if (!video || !video.videoWidth || !video.videoHeight) {
+      setError('Camera frame unavailable. Please retry capture.')
+      return
+    }
+
+    const canvas = document.createElement('canvas')
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    const context = canvas.getContext('2d')
+    if (!context) {
+      setError('Unable to initialize photo capture.')
+      return
+    }
+
+    context.drawImage(video, 0, 0, canvas.width, canvas.height)
+    const photoDataUrl = canvas.toDataURL('image/jpeg', 0.9)
+    onCapture(photoDataUrl)
+  }
+
+  const handleManualUpload = (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        onCapture(reader.result)
+      }
+    }
+    reader.onerror = () => {
+      setError('Failed to read uploaded image. Please try another file.')
+    }
+    reader.readAsDataURL(file)
   }
 
   return (
@@ -104,7 +148,7 @@ function FaceCapture({ onCapture, onSkip }) {
           <div className="flex flex-col gap-3">
             <label className="gov-btn gov-btn-primary w-full cursor-pointer py-4 text-base sm:py-5 sm:text-lg">
               <Upload className="mr-3 h-5 w-5" /> MANUAL IMAGE UPLOAD
-              <input type="file" accept="image/*" className="hidden" onChange={() => onCapture('mock-base64')} />
+              <input type="file" accept="image/*" className="hidden" onChange={handleManualUpload} />
             </label>
 
             <button

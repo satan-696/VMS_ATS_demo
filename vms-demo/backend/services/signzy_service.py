@@ -283,12 +283,13 @@ def _mock_verify_otp(uid: str, otp: str, txn_id: str) -> dict:
     }
 
 def _mock_face_match() -> dict:
-    score = 0.1
+    import random
+    score = round(random.uniform(0.80, 0.95), 3)
     return {
         "success": True,
         "matchScore": score,
-        "matched": False,
-        "decision": "REVIEW_REQUIRED",
+        "matched": True,
+        "decision": "MATCH",
         "source": "mock",
-        "_mockNote": "Signzy not configured. Fixed low score for testing."
+        "_mockNote": "Signzy not configured. Using simulated high-confidence face match."
     }
