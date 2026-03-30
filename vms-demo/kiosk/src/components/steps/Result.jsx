@@ -54,15 +54,50 @@ function Result({ result, onReset }) {
     <div className="flex min-h-[60vh] w-full flex-col items-center justify-center">
       <style>{`
         @media print {
+          @page {
+            size: 78mm auto;
+            margin: 0;
+          }
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 78mm !important;
+            background: #fff !important;
+          }
           body * { visibility: hidden !important; }
           #kiosk-print-pass, #kiosk-print-pass * { visibility: visible !important; }
           #kiosk-print-pass {
             position: absolute !important;
             left: 0 !important;
             top: 0 !important;
-            width: 100% !important;
+            width: 78mm !important;
             display: block !important;
             opacity: 1 !important;
+          }
+          #kiosk-print-pass .print-card {
+            break-inside: avoid-page !important;
+            page-break-inside: avoid !important;
+            width: 76mm !important;
+            margin: 1mm !important;
+            border: 0.3mm solid #111827 !important;
+            border-radius: 1.5mm !important;
+            overflow: hidden !important;
+            font-size: 3.2mm !important;
+          }
+          #kiosk-print-pass .print-header {
+            padding: 2mm 2.5mm !important;
+          }
+          #kiosk-print-pass .print-body {
+            padding: 2mm 2.5mm !important;
+            grid-template-columns: 22mm 1fr !important;
+            gap: 2mm !important;
+          }
+          #kiosk-print-pass .print-photo {
+            height: 28mm !important;
+          }
+          #kiosk-print-pass .print-details {
+            font-size: 3.1mm !important;
+            line-height: 1.35 !important;
           }
         }
       `}</style>
@@ -75,24 +110,24 @@ function Result({ result, onReset }) {
             position: 'fixed',
             left: '-10000px',
             top: 0,
-            width: '900px',
+            width: '78mm',
             opacity: isPrinting ? 1 : 0
           }}
         >
-          <div style={{ border: '2px solid #0f172a', margin: '24px', borderRadius: '12px', overflow: 'hidden' }}>
-            <div style={{ background: '#0f172a', color: '#fff', padding: '14px 20px', display: 'flex', justifyContent: 'space-between' }}>
-              <strong style={{ letterSpacing: '0.08em' }}>ATS VISITOR PASS</strong>
+          <div className="print-card" style={{ border: '2px solid #0f172a', margin: '24px', borderRadius: '12px', overflow: 'hidden' }}>
+            <div className="print-header" style={{ background: '#0f172a', color: '#fff', padding: '14px 20px', display: 'flex', justifyContent: 'space-between' }}>
+              <strong style={{ letterSpacing: '0.06em', fontSize: '3.3mm' }}>ATS VISITOR PASS</strong>
               <span>{visitId}</span>
             </div>
-            <div style={{ padding: '20px', display: 'grid', gridTemplateColumns: '170px 1fr', gap: '18px' }}>
-              <div style={{ border: '1px solid #cbd5e1', borderRadius: '8px', height: '210px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="print-body" style={{ padding: '20px', display: 'grid', gridTemplateColumns: '170px 1fr', gap: '18px' }}>
+              <div className="print-photo" style={{ border: '1px solid #cbd5e1', borderRadius: '8px', height: '210px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {livePhoto ? (
                   <img src={livePhoto} alt="Live Visitor" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                   <span style={{ fontSize: '12px', color: '#64748b' }}>No live photo captured</span>
                 )}
               </div>
-              <div style={{ fontSize: '14px', lineHeight: 1.5 }}>
+              <div className="print-details" style={{ fontSize: '14px', lineHeight: 1.5 }}>
                 <div><strong>Visitor:</strong> {visitor.name || '-'}</div>
                 <div><strong>Aadhaar:</strong> {visitor.aadhaarMasked || '-'}</div>
                 <div><strong>Purpose:</strong> {visitor.purpose || '-'}</div>
