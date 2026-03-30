@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Welcome from './components/steps/Welcome'
 import AadhaarChoice from './components/steps/AadhaarChoice'
 import AadhaarScan from './components/steps/AadhaarScan'
@@ -44,6 +44,15 @@ function App() {
   const [visitor, setVisitor] = useState(null)
   const [mobileHint, setMobileHint] = useState('')
   const [visitResult, setVisitResult] = useState(null)
+
+  useEffect(() => {
+    // Kiosk UX: disable middle-click autoscroll indicator (crosshair icon)
+    const preventMiddleClickAutoScroll = (event) => {
+      if (event.button === 1) event.preventDefault()
+    }
+    window.addEventListener('mousedown', preventMiddleClickAutoScroll, { passive: false })
+    return () => window.removeEventListener('mousedown', preventMiddleClickAutoScroll)
+  }, [])
 
   const resetAll = () => {
     setStep(STEPS.WELCOME)

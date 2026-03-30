@@ -6,7 +6,7 @@ function Result({ result, onReset }) {
   const [status, setStatus] = useState(result.status)
   const [visitId, setVisitId] = useState(result.visitId)
   const [isPrinting, setIsPrinting] = useState(false)
-  const [printMode, setPrintMode] = useState(() => localStorage.getItem('kiosk_print_mode') || 'FULL')
+  const [printMode, setPrintMode] = useState(() => localStorage.getItem('kiosk_print_mode') || 'THERMAL')
   const visitor = result?.visitor || {}
   const isThermalMode = printMode === 'THERMAL'
 
@@ -61,13 +61,13 @@ function Result({ result, onReset }) {
       <style>{`
         @media print {
           @page {
-            size: ${isThermalMode ? '78mm auto' : 'auto'};
+            size: ${isThermalMode ? '80mm auto' : 'auto'};
             margin: 0;
           }
           html, body {
             margin: 0 !important;
             padding: 0 !important;
-            width: ${isThermalMode ? '78mm' : '100%'} !important;
+            width: ${isThermalMode ? '80mm' : '100%'} !important;
             background: #fff !important;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
@@ -78,16 +78,16 @@ function Result({ result, onReset }) {
             position: absolute !important;
             left: 0 !important;
             top: 0 !important;
-            width: ${isThermalMode ? '78mm' : '100%'} !important;
+            width: ${isThermalMode ? '80mm' : '100%'} !important;
             display: block !important;
             opacity: 1 !important;
           }
           #kiosk-print-pass .print-card {
             break-inside: avoid-page !important;
             page-break-inside: avoid !important;
-            width: ${isThermalMode ? '76mm' : '100%'} !important;
+            width: ${isThermalMode ? '79mm' : '100%'} !important;
             min-height: ${isThermalMode ? 'auto' : '100vh'} !important;
-            margin: ${isThermalMode ? '1mm' : '0'} !important;
+            margin: ${isThermalMode ? '0.5mm' : '0'} !important;
             border: 0.3mm solid #111827 !important;
             border-radius: ${isThermalMode ? '1.5mm' : '0'} !important;
             overflow: hidden !important;
@@ -119,7 +119,7 @@ function Result({ result, onReset }) {
             position: 'fixed',
             left: '-10000px',
             top: 0,
-            width: isThermalMode ? '78mm' : '100vw',
+            width: isThermalMode ? '80mm' : '100vw',
             opacity: isPrinting ? 1 : 0
           }}
         >
@@ -223,7 +223,7 @@ function Result({ result, onReset }) {
                   className="rounded border border-ats-accent/20 bg-slate-900 px-2 py-1 text-[11px] font-mono text-slate-200 focus:border-ats-accent focus:outline-none"
                 >
                   <option value="FULL">Full Page</option>
-                  <option value="THERMAL">Thermal 78mm</option>
+                  <option value="THERMAL">Thermal 80mm</option>
                 </select>
               </label>
               <button
