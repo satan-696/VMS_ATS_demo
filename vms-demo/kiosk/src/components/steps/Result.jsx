@@ -6,7 +6,9 @@ function Result({ result, onReset }) {
   const [status, setStatus] = useState(result.status)
   const [visitId, setVisitId] = useState(result.visitId)
   const [isPrinting, setIsPrinting] = useState(false)
+  const [printMode, setPrintMode] = useState(() => localStorage.getItem('kiosk_print_mode') || 'FULL')
   const visitor = result?.visitor || {}
+  const isThermalMode = printMode === 'THERMAL'
 
   useEffect(() => {
     let interval
@@ -32,6 +34,10 @@ function Result({ result, onReset }) {
     return () => window.removeEventListener('afterprint', onAfterPrint)
   }, [])
 
+  useEffect(() => {
+    localStorage.setItem('kiosk_print_mode', printMode)
+  }, [printMode])
+
   const baseCard = 'glass-panel w-full max-w-3xl overflow-hidden border-t-4'
   const livePhoto = visitor.live_photo_base64 || visitor.reference_photo_base64 || ''
 
@@ -55,14 +61,16 @@ function Result({ result, onReset }) {
       <style>{`
         @media print {
           @page {
-            size: 78mm auto;
+            size: ${isThermalMode ? '78mm auto' : 'auto'};
             margin: 0;
           }
           html, body {
             margin: 0 !important;
             padding: 0 !important;
-            width: 78mm !important;
+            width: ${isThermalMode ? '78mm' : '100%'} !important;
             background: #fff !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
           body * { visibility: hidden !important; }
           #kiosk-print-pass, #kiosk-print-pass * { visibility: visible !important; }
@@ -70,34 +78,35 @@ function Result({ result, onReset }) {
             position: absolute !important;
             left: 0 !important;
             top: 0 !important;
-            width: 78mm !important;
+            width: ${isThermalMode ? '78mm' : '100%'} !important;
             display: block !important;
             opacity: 1 !important;
           }
           #kiosk-print-pass .print-card {
             break-inside: avoid-page !important;
             page-break-inside: avoid !important;
-            width: 76mm !important;
-            margin: 1mm !important;
+            width: ${isThermalMode ? '76mm' : '100%'} !important;
+            min-height: ${isThermalMode ? 'auto' : '100vh'} !important;
+            margin: ${isThermalMode ? '1mm' : '0'} !important;
             border: 0.3mm solid #111827 !important;
-            border-radius: 1.5mm !important;
+            border-radius: ${isThermalMode ? '1.5mm' : '0'} !important;
             overflow: hidden !important;
-            font-size: 3.2mm !important;
+            font-size: ${isThermalMode ? '3.2mm' : '4mm'} !important;
           }
           #kiosk-print-pass .print-header {
-            padding: 2mm 2.5mm !important;
+            padding: ${isThermalMode ? '2mm 2.5mm' : '3mm 4mm'} !important;
           }
           #kiosk-print-pass .print-body {
-            padding: 2mm 2.5mm !important;
-            grid-template-columns: 22mm 1fr !important;
-            gap: 2mm !important;
+            padding: ${isThermalMode ? '2mm 2.5mm' : '4mm'} !important;
+            grid-template-columns: ${isThermalMode ? '22mm 1fr' : '32% 1fr'} !important;
+            gap: ${isThermalMode ? '2mm' : '4mm'} !important;
           }
           #kiosk-print-pass .print-photo {
-            height: 28mm !important;
+            height: ${isThermalMode ? '28mm' : '42mm'} !important;
           }
           #kiosk-print-pass .print-details {
-            font-size: 3.1mm !important;
-            line-height: 1.35 !important;
+            font-size: ${isThermalMode ? '3.1mm' : '4.2mm'} !important;
+            line-height: ${isThermalMode ? '1.35' : '1.4'} !important;
           }
         }
       `}</style>
@@ -110,7 +119,7 @@ function Result({ result, onReset }) {
             position: 'fixed',
             left: '-10000px',
             top: 0,
-            width: '78mm',
+            width: isThermalMode ? '78mm' : '100vw',
             opacity: isPrinting ? 1 : 0
           }}
         >
@@ -206,6 +215,17 @@ function Result({ result, onReset }) {
             </div>
 
             <div className="relative z-10 flex w-full flex-col gap-3 pt-2 sm:flex-row sm:gap-5">
+              <label className="flex items-center gap-2 rounded border border-ats-accent/20 bg-slate-900/50 px-3 py-2 text-xs font-mono uppercase tracking-widest text-slate-300 sm:w-auto">
+                Print Mode
+                <select
+                  value={printMode}
+                  onChange={(e) => setPrintMode(e.target.value)}
+                  className="rounded border border-ats-accent/20 bg-slate-900 px-2 py-1 text-[11px] font-mono text-slate-200 focus:border-ats-accent focus:outline-none"
+                >
+                  <option value="FULL">Full Page</option>
+                  <option value="THERMAL">Thermal 78mm</option>
+                </select>
+              </label>
               <button
                 onClick={handlePrintPass}
                 className="gov-btn gov-btn-secondary flex-1 border-ats-accent/20 text-ats-accent/70 transition-all hover:border-ats-accent hover:text-ats-accent"
