@@ -23,6 +23,7 @@ class RegisterVisitorRequest(BaseModel):
     host_officer: str
     duration: str
     department_sensitivity: Optional[str] = "NORMAL"
+    is_mock_verification: Optional[bool] = False
 
 @router.post("/visitors/register")
 async def register_visitor(req: RegisterVisitorRequest, db: Session = Depends(get_session)):
@@ -86,6 +87,12 @@ async def register_visitor(req: RegisterVisitorRequest, db: Session = Depends(ge
         is_odd_hours=is_odd_hours,
         department_sensitivity=req.department_sensitivity or "NORMAL"
     )
+
+    # Demo-mode override: allow pass generation for non-blacklisted mock users.
+    if req.is_mock_verification and not is_blacklisted and risk["action"] == "REJECT":
+        risk["action"] = "AUTO_APPROVE"
+        risk["riskLevel"] = "LOW"
+        risk["riskScore"] = min(risk.get("riskScore", 0.0), 0.32)
     
     # 4. Create visit record
     visit_id = f"VMS-{now.strftime('%Y%m%d')}-{generate_short_id()}"

@@ -124,7 +124,8 @@ function App() {
     try {
       const res = await api.registerVisit({
         ...visitor,
-        aadhaar_masked: visitor.aadhaarMasked || `XXXX-XXXX-${aadhaar.slice(-4)}`
+        aadhaar_masked: visitor.aadhaarMasked || `XXXX-XXXX-${aadhaar.slice(-4)}`,
+        is_mock_verification: isMock
       })
       
       // Inject the current visitor data into the result so Result.jsx can print the pass
