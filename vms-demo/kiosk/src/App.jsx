@@ -1,122 +1,88 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Welcome from './components/steps/Welcome'
-import AadhaarChoice from './components/steps/AadhaarChoice'
-import AadhaarScan from './components/steps/AadhaarScan'
-import AadhaarManual from './components/steps/AadhaarManual'
-import OTPVerify from './components/steps/OTPVerify'
+import Options from './components/steps/Options'
+import AadhaarOVSE from './components/steps/AadhaarOVSE'
+import ManualDocument from './components/steps/ManualDocument'
+import DigiLocker from './components/steps/DigiLocker'
+import AadhaarOTP from './components/steps/AadhaarOTP'
 import IdentityConfirm from './components/steps/IdentityConfirm'
 import FaceCapture from './components/steps/FaceCapture'
 import Processing from './components/steps/Processing'
 import Result from './components/steps/Result'
 import SessionGuard from './components/SessionGuard'
 import * as api from './services/api'
+import { Shield, Clock, AlertCircle } from 'lucide-react'
 
 const STEPS = {
   WELCOME: 'WELCOME',
-  CHOICE: 'CHOICE',
-  SCAN: 'SCAN',
+  OPTIONS: 'OPTIONS',
+  OVSE: 'OVSE',
   MANUAL: 'MANUAL',
-  OTP: 'OTP',
   CONFIRM: 'CONFIRM',
   FACE: 'FACE',
+  DIGILOCKER: 'DIGILOCKER', 
+  AADHAAR_OTP: 'AADHAAR_OTP',
   PROCESSING: 'PROCESSING',
   RESULT: 'RESULT'
 }
 
-const STEP_ORDER = [
-  STEPS.WELCOME,
-  STEPS.CHOICE,
-  STEPS.SCAN,
-  STEPS.MANUAL,
-  STEPS.OTP,
-  STEPS.CONFIRM,
-  STEPS.FACE,
-  STEPS.PROCESSING,
-  STEPS.RESULT
-]
+const SESSION_TIMEOUT_SEC = 180 // 3 minutes
 
 function App() {
   const [step, setStep] = useState(STEPS.WELCOME)
-  const [aadhaar, setAadhaar] = useState('')
-  const [mobile, setMobile] = useState('')
-  const [referenceId, setReferenceId] = useState('')
-  const [isMock, setIsMock] = useState(true)
   const [visitor, setVisitor] = useState(null)
-  const [mobileHint, setMobileHint] = useState('')
   const [visitResult, setVisitResult] = useState(null)
+  const [verificationType, setVerificationType] = useState('aadhaar_ovse')
+  const [demoVisitor, setDemoVisitor] = useState(1) // Controlled by ?demo=true hidden UI
+  const [showDemoUI, setShowDemoUI] = useState(false)
+  const [currentTime, setCurrentTime] = useState(new Date())
 
+  // Check for demo mode in URL
   useEffect(() => {
-    // Kiosk UX: disable middle-click autoscroll indicator (crosshair icon)
-    const preventMiddleClickAutoScroll = (event) => {
-      if (event.button === 1) event.preventDefault()
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('demo') === 'true') {
+      setShowDemoUI(true)
     }
-    window.addEventListener('mousedown', preventMiddleClickAutoScroll, { passive: false })
-    return () => window.removeEventListener('mousedown', preventMiddleClickAutoScroll)
+
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000)
+    return () => clearInterval(timer)
   }, [])
 
-  const resetAll = () => {
+  const resetAll = useCallback(() => {
     setStep(STEPS.WELCOME)
-    setAadhaar('')
-    setMobile('')
-    setReferenceId('')
-    setIsMock(true)
     setVisitor(null)
-    setMobileHint('')
     setVisitResult(null)
+    setVerificationType('aadhaar_ovse')
+  }, [])
+
+  const handleStart = () => setStep(STEPS.OPTIONS)
+
+  const handleOptionSelect = (type) => {
+    setVerificationType(type)
+    if (type === 'aadhaar_ovse') setStep(STEPS.OVSE)
+    else if (type === 'aadhaar_digilocker') setStep(STEPS.DIGILOCKER)
+    else setStep(STEPS.MANUAL)
   }
 
-  const handleStart = () => setStep(STEPS.CHOICE)
-
-  const handleChoice = (type) => {
-    setStep(type === 'qr' ? STEPS.SCAN : STEPS.MANUAL)
+  const handleOVSEComplete = (data) => {
+    setVisitor({
+      ...data,
+      name: data.full_name || data.name,
+      reference_photo_base64: data.photo
+    })
+    setStep(STEPS.CONFIRM)
   }
 
-  const handleAadhaarSubmit = async (num, mobileNum) => {
-    setAadhaar(num)
-    if (mobileNum) setMobile(mobileNum)
-    try {
-      const res = await api.sendOTP(num)
-      setReferenceId(res.data.referenceId)
-      setIsMock(res.data._isMock)
-      setMobileHint(res.data.mobileHint || '****')
-      setStep(STEPS.OTP)
-    } catch (err) {
-      alert('Error sending OTP. Please try again.')
+  const handleManualSubmit = (data) => {
+    // data is a FormData object with document details, 
+    // OR a JSON object for manual_otp path
+    if (data.verification_type === 'aadhaar_manual_otp') {
+      setVisitor(data)
+      setStep(STEPS.AADHAAR_OTP)
+      return
     }
-  }
-
-  const handleScan = async (num) => {
-    setAadhaar(num)
-    setMobile('0000000000')
-    try {
-      const res = await api.verifyOTP(num, '123456', 'MOCK-SCAN')
-      setVisitor({
-        ...res.data,
-        mobile: '0000000000'
-      })
-      setIsMock(res.data._isMock)
-      setStep(STEPS.CONFIRM)
-    } catch (err) {
-      alert('QR scan failed. Please use manual entry.')
-    }
-  }
-
-  const handleVerifyOTP = async (otp) => {
-    try {
-      const res = await api.verifyOTP(aadhaar, otp, referenceId)
-      
-      // Store visitor data including the real Aadhaar photo
-      setVisitor({
-        ...res.data,
-        mobile: mobile,
-        reference_photo_base64: res.data.photo // Sandbox returns 'photo'
-      })
-      setIsMock(res.data._isMock)
-      setStep(STEPS.CONFIRM)
-      return true
-    } catch (err) {
-      return false
-    }
+    setVisitor(data) 
+    setStep(STEPS.FACE)
   }
 
   const handleConfirmDetails = (details) => {
@@ -125,111 +91,183 @@ function App() {
   }
 
   const handleFaceCapture = (photo) => {
-    setVisitor((prev) => ({ ...prev, live_photo_base64: photo }))
+    if (verificationType === 'manual_document') {
+      // visitor is a FormData object here
+      visitor.append('live_photo_base64', photo)
+      setVisitor(visitor)
+    } else {
+      setVisitor((prev) => ({ ...prev, live_photo_base64: photo }))
+    }
     setStep(STEPS.PROCESSING)
   }
 
-  const handleProcessingComplete = async () => {
+  const handleFinalRegistration = async () => {
     try {
-      const res = await api.registerVisit({
-        ...visitor,
-        aadhaar_masked: visitor.aadhaarMasked || `XXXX-XXXX-${aadhaar.slice(-4)}`,
-        is_mock_verification: isMock
-      })
-      
-      // Inject the current visitor data into the result so Result.jsx can print the pass
-      const completeResult = {
-        ...res.data,
-        visitor: visitor 
+      let res
+      if (verificationType === 'aadhaar_ovse') {
+        res = await api.registerVisit({
+          ...visitor,
+          verification_type: 'aadhaar_ovse',
+          is_mock_verification: true // Demo mode
+        })
+      } else {
+        // Manual document registration
+        res = await api.registerManualDocument(visitor)
       }
-      
-      setVisitResult(completeResult)
+      setVisitResult(res.data)
       setStep(STEPS.RESULT)
     } catch (err) {
-      alert('Registration failed. Please see the guard.')
+      console.error("Registration error:", err)
+      alert('Registration failed. Please contact reception.')
     }
   }
 
-  const progress = (STEP_ORDER.indexOf(step) / (STEP_ORDER.length - 1)) * 100
-
   return (
-    <div className="relative flex min-h-dvh flex-col bg-ats-bg font-sans text-slate-200 select-none">
-      <SessionGuard onReset={resetAll} />
+    <div className="relative flex min-h-dvh flex-col bg-gov-bg font-sans text-gov-text select-none overflow-hidden">
+      <SessionGuard onReset={resetAll} timeoutSeconds={SESSION_TIMEOUT_SEC} />
 
-      <header className="z-10 border-b border-ats-accent/20 bg-ats-panel/95 px-4 py-3 shadow-[0_0_20px_rgba(0,0,0,0.5)] sm:px-6 lg:px-8">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-center gap-3 sm:gap-5">
-            <div className="relative shrink-0">
+      {/* Official Header */}
+      <header className="z-20 bg-gov-primary text-white shadow-gov-lg border-b-4 border-gov-accent">
+        <div className="gov-container flex items-center justify-between py-4">
+          <div className="flex items-center gap-6">
+            <div className="bg-white p-2 rounded-lg shadow-sm">
               <img
                 src="https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg"
-                alt="GOI"
-                className="h-10 w-10 brightness-0 invert opacity-80 sm:h-12 sm:w-12"
+                alt="Emblem of India"
+                className="h-14 w-auto"
               />
-              <div className="absolute -inset-1 rounded-full bg-ats-accent/10 blur-sm" />
             </div>
-            <div className="border-l border-ats-accent/20 pl-3 sm:pl-5">
-              <h1 className="truncate font-display text-base font-bold tracking-[0.14em] text-ats-accent sm:text-lg lg:text-xl">
-                ATS COMMAND CENTER
+            <div className="border-l border-white/20 pl-6">
+              <h1 className="text-2xl font-bold tracking-tight uppercase leading-tight">
+                Visitor Management System
               </h1>
-              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400 sm:text-[11px]">
-                Security protocols active • Unit 7-B
+              <p className="text-xs font-semibold text-blue-200 tracking-[0.2em] uppercase">
+                Government of India • Ministry of Home Affairs
               </p>
             </div>
           </div>
 
-          <div className="text-left font-mono sm:text-right">
-            <div className="text-[11px] font-bold text-ats-accent animate-pulse">? SYSTEM LIVE</div>
-            <div className="text-[10px] uppercase tracking-widest text-slate-500">
-              {new Date().toLocaleTimeString('en-IN')}
-            </div>
+          <div className="hidden md:flex items-center gap-8 text-right font-medium">
+             <div className="flex flex-col">
+                <span className="text-[10px] text-blue-200 uppercase tracking-widest">Local Session Time</span>
+                <span className="text-xl font-bold font-mono tracking-tighter">
+                  {currentTime.toLocaleTimeString('en-IN', { hour12: true })}
+                </span>
+             </div>
+             <div className="h-10 w-px bg-white/10" />
+             <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full border border-white/10">
+                <Shield className="w-4 h-4 text-gov-accent" />
+                <span className="text-xs font-bold uppercase tracking-widest">Secured Node</span>
+             </div>
           </div>
         </div>
       </header>
 
-      {step !== STEPS.WELCOME && step !== STEPS.RESULT && (
-        <div className="h-1 w-full overflow-hidden bg-slate-900">
-          <div
-            className="h-full bg-ats-accent shadow-[0_0_10px_rgba(34,211,238,0.5)] transition-all duration-700 ease-in-out"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      )}
-
-      <main className="relative z-10 flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
-        <div className="mx-auto flex min-h-full w-full max-w-7xl items-center justify-center">
+      {/* Main Content */}
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center py-12 px-6">
+        <div className="w-full max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-700">
           {step === STEPS.WELCOME && <Welcome onNext={handleStart} />}
-          {step === STEPS.CHOICE && <AadhaarChoice onChoice={handleChoice} />}
-          {step === STEPS.SCAN && <AadhaarScan onScan={handleScan} onFallback={() => setStep(STEPS.MANUAL)} />}
-          {step === STEPS.MANUAL && <AadhaarManual onSendOTP={handleAadhaarSubmit} />}
-          {step === STEPS.OTP && (
-            <OTPVerify
-              mobileHint={mobileHint}
-              onVerify={handleVerifyOTP}
-              onResend={() => handleAadhaarSubmit(aadhaar)}
+          {step === STEPS.OPTIONS && <Options onSelect={handleOptionSelect} onBack={() => setStep(STEPS.WELCOME)} />}
+          {step === STEPS.OVSE && (
+            <AadhaarOVSE 
+              demoVisitor={demoVisitor} 
+              onComplete={handleOVSEComplete} 
+              onBack={() => setStep(STEPS.OPTIONS)} 
+            />
+          )}
+          {step === STEPS.MANUAL && (
+            <ManualDocument 
+              onComplete={handleManualSubmit} 
+              onBack={() => setStep(STEPS.OPTIONS)} 
+            />
+          )}
+          {step === STEPS.DIGILOCKER && (
+            <DigiLocker 
+              onComplete={handleOVSEComplete} 
+              onBack={() => setStep(STEPS.OPTIONS)} 
+            />
+          )}
+          {step === STEPS.AADHAAR_OTP && (
+            <AadhaarOTP 
+              visitId={visitor?.visit_id}
+              maskedAadhaar={visitor?.masked_aadhaar}
+              onComplete={(res) => {
+                setVisitResult(res)
+                setStep(STEPS.RESULT)
+              }} 
+              onBack={() => setStep(STEPS.MANUAL)} 
             />
           )}
           {step === STEPS.CONFIRM && (
-            <IdentityConfirm
-              visitor={visitor}
-              onConfirm={handleConfirmDetails}
-              onBack={() => setStep(STEPS.CHOICE)}
+            <IdentityConfirm 
+              visitor={visitor} 
+              onConfirm={handleConfirmDetails} 
+              onBack={() => setStep(STEPS.OPTIONS)} 
             />
           )}
-          {step === STEPS.FACE && <FaceCapture onCapture={handleFaceCapture} onSkip={() => handleFaceCapture(null)} />}
-          {step === STEPS.PROCESSING && <Processing onComplete={handleProcessingComplete} isMock={isMock} />}
-          {step === STEPS.RESULT && <Result result={visitResult} onReset={resetAll} />}
+          {step === STEPS.FACE && (
+            <FaceCapture 
+              onCapture={handleFaceCapture} 
+              onSkip={() => handleFaceCapture(null)} 
+            />
+          )}
+          {step === STEPS.PROCESSING && (
+            <Processing 
+              visitor={visitor}
+              onComplete={handleFinalRegistration} 
+            />
+          )}
+          {step === STEPS.RESULT && (
+            <Result 
+              result={visitResult} 
+              onReset={resetAll} 
+            />
+          )}
         </div>
       </main>
 
-      <footer className="border-t border-ats-accent/10 bg-slate-950/80 px-4 py-3 text-[10px] uppercase tracking-widest text-slate-500 sm:px-6 lg:px-8">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="opacity-40">Encrypted terminal 0x4F2A</div>
-          <div className="flex items-center gap-4 sm:gap-8">
-            <div>Uptime: 99.9%</div>
-            <div className="text-ats-accent/50">ATS Internal Network</div>
-          </div>
+      {/* Footer */}
+      <footer className="z-20 bg-white border-t border-gov-border py-4">
+        <div className="gov-container flex flex-col md:flex-row items-center justify-between gap-4 grayscale opacity-60">
+           <div className="flex items-center gap-6">
+              <img src="https://upload.wikimedia.org/wikipedia/en/9/95/Digital_India_logo.svg" alt="Digital India" className="h-8" />
+              <div className="h-4 w-px bg-slate-300" />
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                An Initiative of the Government of India
+              </p>
+           </div>
+           <div className="flex items-center gap-6 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              <span>Privacy Policy</span>
+              <span>Terms of Service</span>
+              <span>Accessibility</span>
+              <span className="text-gov-primary font-mono opacity-100">NODE_VMS_DEMO_01</span>
+           </div>
         </div>
       </footer>
+
+      {/* Deterministic Demo Mode Selector (Hidden unless ?demo=true) */}
+      {showDemoUI && (
+        <div className="fixed bottom-6 right-6 z-[100] bg-white border-2 border-gov-primary p-4 rounded-xl shadow-2xl animate-bounce">
+           <div className="flex items-center gap-3 mb-2 text-gov-primary">
+              <AlertCircle className="w-5 h-5" />
+              <span className="font-bold text-xs uppercase tracking-widest">Demo Scenario Control</span>
+           </div>
+           <div className="flex gap-2">
+              {[1, 2, 3].map(v => (
+                <button
+                  key={v}
+                  onClick={() => setDemoVisitor(v)}
+                  className={`w-10 h-10 rounded-lg font-bold transition-all ${demoVisitor === v ? 'bg-gov-primary text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                >
+                  {v}
+                </button>
+              ))}
+           </div>
+           <p className="mt-2 text-[10px] text-slate-400 max-w-[150px] leading-tight">
+             Select visitor ID for next scan: 1 (OK), 2 (Review), 3 (Reject).
+           </p>
+        </div>
+      )}
     </div>
   )
 }

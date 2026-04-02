@@ -1,325 +1,236 @@
-import React, { useState, useEffect } from 'react'
-import { CheckCircle2, Clock, XCircle, Printer, RotateCcw } from 'lucide-react'
-import { getVisitStatus } from '../../services/api'
+import React, { useEffect, useRef, useState } from 'react'
+import { CheckCircle2, Clock, XCircle, RotateCcw, Printer, ShieldCheck } from 'lucide-react'
+import * as api from '../../services/api'
 
 function Result({ result, onReset }) {
-  const [status, setStatus] = useState(result.status)
-  const [visitId, setVisitId] = useState(result.visitId)
-  const [isPrinting, setIsPrinting] = useState(false)
-  const [printMode, setPrintMode] = useState(() => localStorage.getItem('kiosk_print_mode') || 'THERMAL')
-  const visitor = result?.visitor || {}
-  const isThermalMode = printMode === 'THERMAL'
+  const [status, setStatus] = useState(result?.status || 'PENDING')
+  const [details, setDetails] = useState(result || {})
+  const pollRef = useRef(null)
+  
+  const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
   useEffect(() => {
-    let interval
-    if (status === 'PENDING') {
-      interval = setInterval(async () => {
+    // If still pending (from Aadhaar risk review or manual review), poll for admin approval
+    if (status === 'PENDING' || status === 'PENDING_MANUAL_REVIEW') {
+      pollRef.current = setInterval(async () => {
         try {
-          const res = await getVisitStatus(visitId)
-          if (res.data.status !== 'PENDING') {
-            setStatus(res.data.status)
-            clearInterval(interval)
+          const res = await api.getVisitStatus(result?.visitId)
+          const data = res.data
+          if (data?.status && data?.status !== 'PENDING' && data?.status !== 'PENDING_MANUAL_REVIEW') {
+            setStatus(data.status)
+            setDetails(prev => ({ ...prev, ...data }))
+            clearInterval(pollRef.current)
           }
-        } catch (err) {
-          console.error('Polling error:', err)
+        } catch (e) {
+          // Keep polling silently
         }
       }, 5000)
     }
-    return () => clearInterval(interval)
-  }, [status, visitId])
+    return () => clearInterval(pollRef.current)
+  }, [result, status])
 
-  useEffect(() => {
-    const onAfterPrint = () => setIsPrinting(false)
-    window.addEventListener('afterprint', onAfterPrint)
-    return () => window.removeEventListener('afterprint', onAfterPrint)
-  }, [])
-
-  useEffect(() => {
-    localStorage.setItem('kiosk_print_mode', printMode)
-  }, [printMode])
-
-  const baseCard = 'glass-panel w-full max-w-3xl overflow-hidden border-t-4'
-  const livePhoto = visitor.live_photo_base64 || visitor.reference_photo_base64 || ''
-
-  const escapeHtml = (value = '') =>
-    String(value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;')
-
-  const handlePrintPass = () => {
-    setIsPrinting(true)
-    setTimeout(() => {
-      window.print()
-    }, 100)
-  }
+  const isPending = status === 'PENDING' || status === 'PENDING_MANUAL_REVIEW'
+  const isApproved = status === 'APPROVED'
+  const isRejected = status === 'REJECTED'
+  const isManual = result?.status === 'PENDING_MANUAL_REVIEW' || result?.verification_type === 'manual_document'
 
   return (
-    <div className="flex min-h-[60vh] w-full flex-col items-center justify-center">
-      <style>{`
-        @media print {
-          @page {
-            size: ${isThermalMode ? '80mm auto' : 'auto'};
-            margin: 0;
-          }
-          html, body {
-            margin: 0 !important;
-            padding: 0 !important;
-            width: ${isThermalMode ? '80mm' : '100%'} !important;
-            background: #fff !important;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-          }
-          body * { visibility: hidden !important; }
-          #kiosk-print-pass, #kiosk-print-pass * { visibility: visible !important; }
-          #kiosk-print-pass {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: ${isThermalMode ? '80mm' : '100%'} !important;
-            display: block !important;
-            opacity: 1 !important;
-          }
-          #kiosk-print-pass .print-card {
-            break-inside: avoid-page !important;
-            page-break-inside: avoid !important;
-            width: ${isThermalMode ? '79mm' : '100%'} !important;
-            min-height: ${isThermalMode ? 'auto' : '100vh'} !important;
-            margin: ${isThermalMode ? '0.5mm' : '0'} !important;
-            border: 0.3mm solid #111827 !important;
-            border-radius: ${isThermalMode ? '1.5mm' : '0'} !important;
-            overflow: hidden !important;
-            font-size: ${isThermalMode ? '3.2mm' : '4mm'} !important;
-          }
-          #kiosk-print-pass .print-header {
-            padding: ${isThermalMode ? '2mm 2.5mm' : '3mm 4mm'} !important;
-          }
-          #kiosk-print-pass .print-body {
-            padding: ${isThermalMode ? '2mm 2.5mm' : '4mm'} !important;
-            grid-template-columns: ${isThermalMode ? '22mm 1fr' : '32% 1fr'} !important;
-            gap: ${isThermalMode ? '2mm' : '4mm'} !important;
-          }
-          #kiosk-print-pass .print-photo {
-            height: ${isThermalMode ? '28mm' : '42mm'} !important;
-          }
-          #kiosk-print-pass .print-details {
-            font-size: ${isThermalMode ? '3.1mm' : '4.2mm'} !important;
-            line-height: ${isThermalMode ? '1.35' : '1.4'} !important;
-          }
-        }
-      `}</style>
-
-      {status === 'APPROVED' && (
-        <div
-          id="kiosk-print-pass"
-          className="bg-white text-slate-900"
-          style={{
-            position: 'fixed',
-            left: '-10000px',
-            top: 0,
-            width: isThermalMode ? '80mm' : '100vw',
-            opacity: isPrinting ? 1 : 0
-          }}
-        >
-          <div className="print-card" style={{ border: '2px solid #0f172a', margin: '24px', borderRadius: '12px', overflow: 'hidden' }}>
-            <div className="print-header" style={{ background: '#0f172a', color: '#fff', padding: '14px 20px', display: 'flex', justifyContent: 'space-between' }}>
-              <strong style={{ letterSpacing: '0.06em', fontSize: '3.3mm' }}>ATS VISITOR PASS</strong>
-              <span>{visitId}</span>
-            </div>
-            <div className="print-body" style={{ padding: '20px', display: 'grid', gridTemplateColumns: '170px 1fr', gap: '18px' }}>
-              <div className="print-photo" style={{ border: '1px solid #cbd5e1', borderRadius: '8px', height: '210px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {livePhoto ? (
-                  <img src={livePhoto} alt="Live Visitor" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <span style={{ fontSize: '12px', color: '#64748b' }}>No live photo captured</span>
-                )}
-              </div>
-              <div className="print-details" style={{ fontSize: '14px', lineHeight: 1.5 }}>
-                <div><strong>Visitor:</strong> {visitor.name || '-'}</div>
-                <div><strong>Aadhaar:</strong> {visitor.aadhaarMasked || '-'}</div>
-                <div><strong>Purpose:</strong> {visitor.purpose || '-'}</div>
-                <div><strong>Department:</strong> {visitor.department || '-'}</div>
-                <div><strong>Host Officer:</strong> {visitor.host_officer || '-'}</div>
-                <div><strong>Duration:</strong> {visitor.duration || '-'}</div>
-                <div><strong>Status:</strong> {status}</div>
-                <div><strong>Pass ID:</strong> {visitId || '-'}</div>
-              </div>
-            </div>
-          </div>
+    <div className="flex flex-col items-center space-y-10 animate-in fade-in zoom-in-95 duration-700 px-4 max-w-2xl mx-auto">
+      {/* Status Icon */}
+      <div className="relative">
+        <div className={`absolute -inset-6 rounded-full blur-2xl animate-pulse ${isApproved ? 'bg-green-500/20' : isPending ? 'bg-blue-500/20' : 'bg-red-500/20'}`} />
+        <div className={`relative w-36 h-36 rounded-full flex items-center justify-center border-4 ${isApproved ? 'bg-green-50 border-gov-success' : isPending ? 'bg-blue-50 border-gov-primary' : 'bg-red-50 border-red-600'}`}>
+          {isApproved && <CheckCircle2 className="w-20 h-20 text-gov-success" />}
+          {isPending && <Clock className="w-20 h-20 text-gov-primary animate-spin" style={{ animationDuration: '3s' }} />}
+          {isRejected && <XCircle className="w-20 h-20 text-red-600" />}
         </div>
-      )}
+      </div>
 
-      {status === 'APPROVED' ? (
-        <div className={`${baseCard} border-ats-success shadow-[0_0_50px_rgba(16,185,129,0.15)]`}>
-          <div className="flex flex-col gap-3 border-b border-ats-success/10 bg-ats-success/5 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6 lg:p-8">
-            <div className="flex items-center gap-3 text-ats-success sm:gap-5">
-              <div className="rounded border border-ats-success/30 p-2">
-                <CheckCircle2 className="h-8 w-8 sm:h-10 sm:w-10" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xl font-display font-bold tracking-[0.12em] sm:text-2xl">CLEARANCE GRANTED</span>
-                <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Authorization Status: LEVEL_1_SECURE</span>
+      {/* Title */}
+      <div className="text-center space-y-3">
+        <h2 className={`text-4xl font-extrabold tracking-tight ${isApproved ? 'text-gov-success' : isPending ? 'text-gov-primary' : 'text-red-700'}`}>
+          {isApproved ? 'ENTRY APPROVED' : isPending ? (isManual ? 'UNDER REVIEW' : 'PENDING APPROVAL') : 'ENTRY DENIED'}
+        </h2>
+        <p className="text-gov-text-muted font-medium italic">
+          {isApproved ? 'प्रवेश स्वीकृत है' : isPending ? 'अनुमोदन की प्रतीक्षा में' : 'प्रवेश अस्वीकृत'}
+        </p>
+      </div>
+
+      {/* Gate Pass (only on approval) */}
+      {isApproved && (
+        <div className="w-full bg-white border-2 border-gov-primary rounded-2xl overflow-hidden shadow-gov-lg">
+          {/* Pass Header */}
+          <div className="bg-gov-primary text-white p-5 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="bg-white/20 p-2 rounded-lg"><ShieldCheck className="w-6 h-6" /></div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.3em] text-blue-200">Official Gate Pass</p>
+                <p className="font-bold text-lg leading-tight">ATS Headquarters</p>
               </div>
             </div>
-            <div className="w-fit rounded border border-ats-success/20 bg-ats-success/10 px-3 py-1 font-mono text-xs font-bold text-ats-success">GATE A1</div>
+            <div className="text-right">
+              <p className="font-mono text-2xl font-extrabold">{details?.visitId || details?.visit_id || 'VMS-0000'}</p>
+              <p className="text-[10px] text-blue-200 uppercase tracking-widest">Visit Ref ID</p>
+            </div>
           </div>
 
-          <div className="relative flex flex-col items-center space-y-8 p-5 sm:p-8 lg:p-10">
-            <div className="absolute right-0 top-0 p-6 opacity-5 sm:p-10">
-              <CheckCircle2 className="h-36 w-36 text-ats-success sm:h-52 sm:w-52" />
-            </div>
-
-            <div className="relative z-10 text-center">
-              <p className="mb-1 text-[10px] font-mono uppercase tracking-widest text-slate-500">Subject Authorized</p>
-              <h3 className="text-3xl font-display font-bold tracking-[0.08em] text-white sm:text-4xl lg:text-5xl">{visitor.name}</h3>
-              <p className="mt-3 text-[10px] font-mono uppercase tracking-[0.18em] text-ats-accent sm:text-xs">VMS_UUID: {visitId}</p>
-            </div>
-
-            <div className="grid w-full max-w-xl grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="group relative rounded border border-ats-accent/20 bg-slate-900/50 p-4 sm:p-6">
-                <div className="absolute -inset-0.5 bg-ats-accent/10 opacity-30 blur transition duration-1000 group-hover:opacity-100" />
-                <div className="relative z-10 flex h-44 items-center justify-center border border-dashed border-ats-accent/30 bg-ats-bg sm:h-48">
-                  {livePhoto ? (
-                    <img src={livePhoto} alt="Live capture" className="h-full w-full object-cover brightness-110" />
+          {/* Side-by-Side Photos Section */}
+          <div className="flex p-6 gap-6 items-center border-b border-gov-border">
+            <div className="flex gap-4 shrink-0">
+               {/* Left: ID Photo / Aadhaar Photo */}
+               <div className="flex flex-col items-center gap-1">
+                  {details?.aadhaar_photo_url ? (
+                    <img 
+                      src={`${BACKEND_URL}${details.aadhaar_photo_url}`} 
+                      alt="Aadhaar"
+                      className="w-[80px] h-[100px] object-cover rounded border-2 border-gov-border shadow-sm print:block"
+                    />
+                  ) : details?.verification_type === 'aadhaar_manual_otp' ? (
+                    <div className="w-[80px] h-[100px] bg-blue-50 border-2 border-gov-primary/30 rounded flex flex-col items-center justify-center p-2 text-center">
+                       <ShieldCheck className="w-6 h-6 text-gov-primary mb-1" />
+                       <span className="text-[7px] font-bold text-gov-primary leading-tight uppercase">Verified on UIDAI Tathya</span>
+                    </div>
+                  ) : details?.document_photo_path ? (
+                    <img 
+                      src={`${BACKEND_URL}${details.document_photo_path}`} 
+                      alt="ID Document"
+                      className="w-[80px] h-[100px] object-cover rounded border-2 border-gov-border shadow-sm print:block"
+                    />
                   ) : (
-                    <div className="flex flex-col items-center gap-2 text-center">
-                      <span className="text-[8px] font-mono uppercase tracking-widest text-slate-500">No live photo captured</span>
+                    <div className="w-[80px] h-[100px] bg-slate-100 rounded border-2 border-dashed border-slate-300 flex items-center justify-center text-slate-400">
+                       <span className="text-[8px] font-bold text-center p-1 uppercase">Photo Not Available</span>
                     </div>
                   )}
-                </div>
-                <span className="mt-2 block text-center text-[8px] font-mono uppercase tracking-widest text-ats-accent">LIVE_BIO_CAPTURE</span>
-              </div>
+                  <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">
+                    {details?.verification_type === 'manual_document' ? 'ID Document' : 'Aadhaar Photo'}
+                  </span>
+               </div>
 
-              <div className="group relative rounded border border-ats-accent/20 bg-slate-900/50 p-4 sm:p-6">
-                <div className="absolute -inset-0.5 bg-ats-accent/10 opacity-30 blur transition duration-1000 group-hover:opacity-100" />
-                <div className="relative z-10 flex h-44 items-center justify-center border border-dashed border-ats-accent/30 bg-ats-bg sm:h-48">
-                  <div className="flex flex-col items-center gap-2 text-center">
-                    <div className="h-28 w-28 bg-[url('https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=ATS_VMS_CLEARANCE')] bg-contain grayscale brightness-200" />
-                    <span className="text-[8px] font-mono uppercase tracking-widest text-ats-accent">SECURE_GATE_TOKEN</span>
-                  </div>
-                </div>
-              </div>
+               {/* Right: Live Photo */}
+               <div className="flex flex-col items-center gap-1">
+                  {details?.live_photo_url ? (
+                    <img 
+                      src={`${BACKEND_URL}${details.live_photo_url}`} 
+                      alt="Live Capture"
+                      className="w-[80px] h-[100px] object-cover rounded border-2 border-gov-primary/50 shadow-sm print:block"
+                    />
+                  ) : (
+                    <div className="w-[80px] h-[100px] bg-slate-100 rounded border-2 border-dashed border-slate-300 flex items-center justify-center text-slate-400">
+                       <ShieldCheck className="w-8 h-8 opacity-20" />
+                    </div>
+                  )}
+                  <span className="text-[7px] font-bold text-gov-primary uppercase tracking-widest">Live Photo</span>
+               </div>
             </div>
 
-            <div className="grid w-full grid-cols-1 gap-4 border-t border-ats-accent/10 pt-6 font-mono sm:grid-cols-2 sm:gap-8 sm:pt-8">
-              <div className="text-center">
-                <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-500">Entry Window</p>
-                <p className="text-xl font-bold text-ats-success sm:text-2xl">10:00:00</p>
-              </div>
-              <div className="text-center">
-                <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-500">Exit Threshold</p>
-                <p className="text-xl font-bold text-ats-danger sm:text-2xl">13:00:00</p>
-              </div>
-            </div>
-
-            <div className="relative z-10 flex w-full flex-col gap-3 pt-2 sm:flex-row sm:gap-5">
-              <label className="flex items-center gap-2 rounded border border-ats-accent/20 bg-slate-900/50 px-3 py-2 text-xs font-mono uppercase tracking-widest text-slate-300 sm:w-auto">
-                Print Mode
-                <select
-                  value={printMode}
-                  onChange={(e) => setPrintMode(e.target.value)}
-                  className="rounded border border-ats-accent/20 bg-slate-900 px-2 py-1 text-[11px] font-mono text-slate-200 focus:border-ats-accent focus:outline-none"
-                >
-                  <option value="FULL">Full Page</option>
-                  <option value="THERMAL">Thermal 80mm</option>
-                </select>
-              </label>
-              <button
-                onClick={handlePrintPass}
-                className="gov-btn gov-btn-secondary flex-1 border-ats-accent/20 text-ats-accent/70 transition-all hover:border-ats-accent hover:text-ats-accent"
-              >
-                <Printer className="mr-2 h-5 w-5" /> PRINT VISITOR PASS
-              </button>
-              <button
-                onClick={onReset}
-                className="gov-btn gov-btn-primary flex-1 shadow-[0_0_20px_rgba(34,211,238,0.3)]"
-              >
-                <RotateCcw className="mr-2 h-5 w-5" /> TERMINATE SESSION
-              </button>
-            </div>
-
-            <p className="text-center text-[9px] font-mono uppercase tracking-[0.18em] text-slate-600 sm:text-[10px]">
-              Credentials successfully transmitted to encrypted device.
-            </p>
-          </div>
-        </div>
-      ) : status === 'REJECTED' ? (
-        <div className={`${baseCard} border-ats-danger shadow-[0_0_50px_rgba(239,68,68,0.15)]`}>
-          <div className="flex items-center gap-4 border-b border-ats-danger/10 bg-ats-danger/5 p-5 text-ats-danger sm:p-8">
-            <div className="rounded border border-ats-danger/30 p-2">
-              <XCircle className="h-8 w-8 sm:h-10 sm:w-10" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xl font-display font-bold tracking-[0.1em] sm:text-2xl">ACCESS RESTRICTED</span>
-              <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Security Flag: ERR_B_0x01</span>
+            <div className="flex-1 space-y-1">
+               <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Name of Visitor</p>
+               <p className="text-2xl font-extrabold text-gov-primary uppercase leading-none">
+                 {details?.visitor_name || details?.visitor?.name || 'Verified Visitor'}
+               </p>
+               <div className="flex flex-col gap-1 mt-2">
+                 <div className="flex items-center gap-2">
+                    <span className="text-[8px] font-bold bg-gov-bg text-gov-primary px-2 py-0.5 rounded border border-gov-border uppercase">
+                      {details?.verification_type?.replace(/_/g, ' ') || 'Identity Verified'}
+                    </span>
+                 </div>
+                 {details?.aadhaar_masked && (
+                   <p className="text-[10px] font-mono font-bold text-gov-text-muted">ID: {details.aadhaar_masked}</p>
+                 )}
+               </div>
             </div>
           </div>
 
-          <div className="relative space-y-6 overflow-hidden p-5 text-center sm:p-8 lg:p-10">
-            <div className="absolute right-0 top-0 p-6 opacity-5 sm:p-10">
-              <XCircle className="h-36 w-36 text-ats-danger sm:h-52 sm:w-52" />
-            </div>
-
-            <p className="relative z-10 text-xl font-display font-bold uppercase tracking-[0.08em] text-white sm:text-2xl">
-              Entry credentials could not be validated.
-            </p>
-
-            <div className="relative z-10 space-y-3">
-              <p className="text-xs font-mono uppercase leading-relaxed tracking-[0.14em] text-slate-400">
-                Mandatory background scrutiny failed at secondary level.
-                Please report to high-security desk for manual override.
-              </p>
-              <div className="group relative overflow-hidden rounded border border-ats-danger/20 bg-ats-danger/10 p-5">
-                <div className="absolute inset-0 animate-pulse bg-ats-danger/5 opacity-20" />
-                <p className="mb-1 text-[10px] font-mono font-bold uppercase tracking-widest text-ats-danger">Command Line Support:</p>
-                <p className="text-2xl font-display font-bold tracking-[0.2em] text-ats-danger sm:text-3xl">SEC_INT: 1044</p>
+          {/* Pass Body */}
+          <div className="divide-y divide-gov-border">
+            {[
+              { label: 'Purpose', value: details?.purpose || details?.visitor?.purpose || 'Official Visit' },
+              { label: 'Department', value: details?.department || details?.visitor?.department || '--' },
+              { label: 'Host Officer', value: details?.host_officer || details?.visitor?.host_officer || '--' },
+              { label: 'Entry Date', value: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) },
+              { label: 'Valid Until', value: '8 Hours from Issue' },
+            ].map(item => (
+              <div key={item.label} className="flex items-center justify-between px-8 py-3.5 hover:bg-blue-50/30 transition-colors">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{item.label}</span>
+                <span className="font-bold text-gov-primary text-right text-xs ml-8 max-w-xs">{item.value}</span>
               </div>
-            </div>
-
-            <button
-              onClick={onReset}
-              className="gov-btn gov-btn-primary w-full border-none bg-ats-danger tracking-[0.14em] text-white shadow-[0_0_20px_rgba(239,68,68,0.3)]"
-            >
-              INITIALIZE RESET
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className={`${baseCard} border-ats-accent animate-glow`}>
-          <div className="flex items-center gap-4 border-b border-ats-accent/10 bg-ats-accent/5 p-5 text-ats-accent sm:p-8">
-            <div className="rounded border border-ats-accent/30 p-2">
-              <Clock className="h-8 w-8 animate-pulse sm:h-10 sm:w-10" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xl font-display font-bold tracking-[0.1em] sm:text-2xl">VERIFICATION PENDING</span>
-              <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Queue Position: PRIORITY_SEC_01</span>
-            </div>
+            ))}
           </div>
 
-          <div className="space-y-6 p-5 text-center sm:p-8 lg:p-10">
-            <p className="text-xl font-display font-bold uppercase tracking-[0.08em] text-white sm:text-2xl">
-              Request is under secondary review
-            </p>
-            <p className="text-xs font-mono uppercase leading-relaxed tracking-[0.14em] text-slate-400">
-              A clearance officer is reviewing your biometric credentials.
-            </p>
-
-            <div className="rounded border border-ats-accent/20 bg-ats-accent/10 p-6 font-mono sm:p-8">
-              <p className="mb-2 select-none cursor-default text-[10px] font-bold uppercase tracking-widest text-ats-accent">Estimated Calibration Window:</p>
-              <p className="animate-pulse text-3xl font-display font-bold tracking-[0.2em] text-ats-accent sm:text-4xl">05:00.0s</p>
+          {/* Security Footer */}
+          <div className="bg-gov-bg px-8 py-4 flex items-center justify-between border-t border-gov-border">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-gov-success animate-pulse" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-gov-success">VERIFIED & CLEARED</span>
             </div>
-
-            <button
-              onClick={onReset}
-              className="gov-btn gov-btn-secondary w-full border-ats-accent/20 text-xs uppercase tracking-[0.14em] text-ats-accent/60 transition-all hover:border-ats-accent hover:text-ats-accent"
-            >
-              Terminate Protocol
+            <button className="flex items-center gap-2 text-gov-primary text-xs font-bold uppercase tracking-widest hover:underline" onClick={() => window.print()}>
+              <Printer className="w-4 h-4" /> Print Pass
             </button>
           </div>
         </div>
       )}
+
+      {/* Pending State */}
+      {isPending && (
+        <div className="w-full bg-blue-50 border-2 border-gov-primary/20 rounded-2xl p-8 space-y-6 text-center">
+          <div className="space-y-2">
+            <p className="text-lg font-bold text-gov-primary">
+              {isManual ? 'Your documents have been submitted to the officer at the reception.' : 'Your visit is pending officer approval.'}
+            </p>
+            <p className="text-gov-text-muted font-medium text-sm">
+              {isManual ? 'Please wait while the officer reviews your documents.' : 'A duty officer will review your visit shortly.'}
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-3 py-4 px-6 bg-white rounded-xl border border-blue-100 text-gov-primary text-sm font-bold uppercase tracking-widest">
+            <div className="w-2 h-2 rounded-full bg-gov-accent animate-ping" />
+            <Clock className="w-4 h-4" />
+            Waiting for officer approval... (auto-updates)
+          </div>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+            Reference: {result?.visitId}  |  Est. Wait: 10-15 mins
+          </p>
+        </div>
+      )}
+
+      {/* Rejection State */}
+      {isRejected && (
+        <div className="w-full bg-red-50 border-2 border-red-200 rounded-2xl p-8 text-center space-y-4">
+          <p className="text-red-800 font-bold text-lg">Entry has been denied by security protocol.</p>
+          <p className="text-red-700 text-sm font-medium">
+            Please contact the reception officer for further assistance.
+            <br />कृपया रिसेप्शन अधिकारी से संपर्क करें।
+          </p>
+        </div>
+      )}
+
+      {/* Reset Button */}
+      <button
+        onClick={onReset}
+        className="gov-button-secondary py-4 px-10 text-base tracking-wide group"
+      >
+        <RotateCcw className="w-5 h-5 group-active:rotate-180 transition-transform" />
+        START NEW REGISTRATION
+      </button>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          body * { visibility: hidden; }
+          .shadow-gov-lg, .shadow-gov-lg * { visibility: visible; }
+          .shadow-gov-lg {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            border: 2px solid #1a3c6e !important;
+            box-shadow: none !important;
+          }
+          .no-print, button { display: none !important; }
+        }
+      `}} />
+
+      <p className="text-[10px] text-slate-400 text-center font-bold uppercase tracking-widest">
+        This terminal will auto-reset in 3 minutes for security.
+      </p>
     </div>
   )
 }

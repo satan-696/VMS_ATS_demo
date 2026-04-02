@@ -3,6 +3,9 @@ import string
 from sqlmodel import Session
 from database import Visit, Visitor
 from datetime import datetime
+import base64
+import aiofiles
+import os
 
 def generate_short_id(length=6):
     """Generate a random alphanumeric ID."""
@@ -38,9 +41,21 @@ def create_visit_record(db: Session, data: dict):
         department=data["department"],
         host_officer=data["hostOfficer"],
         duration=data.get("duration", "1-2 Hours"),
-        match_score=data["faceScore"],
-        risk_level=data["riskLevel"],
-        status=data["status"]
+        match_score=data.get("faceScore", 0.0),
+        risk_level=data.get("riskLevel", "LOW"),
+        status=data.get("status", "PENDING"),
+        verification_type=data.get("verificationType", "aadhaar_ovse"),
+        document_type=data.get("documentType"),
+        document_photo_path=data.get("documentPhotoPath"),
+        ovse_client_id=data.get("ovseClientId"),
+        live_photo_path=data.get("livePhotoPath"),
+        aadhaar_photo_path=data.get("aadhaarPhotoPath"),
+        aadhaar_encrypted=data.get("aadhaarEncrypted"),
+        aadhaar_masked=data.get("aadhaarMasked"),
+        pending_otp=data.get("pendingOtp"),
+        otp_submitted_at=data.get("otpSubmittedAt"),
+        face_match_source=data.get("faceMatchSource", "unknown"),
+        liveness_source=data.get("livenessSource", "unknown")
     )
     db.add(visit)
     db.commit()
@@ -79,3 +94,22 @@ def get_recent_visit_count(db: Session, aadhaar_masked: str, days: int = 30) -> 
     )
     result = db.exec(statement).one()
     return result
+
+async def save_live_photo(visit_id: str, photo_b64: str) -> str:
+    """
+    Accepts base64 JPEG string (with or without data URI prefix).
+    Saves to uploads/photos/{visit_id}_live.jpg
+    Returns the relative file path.
+    """
+    os.makedirs("uploads/photos", exist_ok=True)
+    
+    # Strip data URI prefix if present
+    if "," in photo_b64:
+        photo_b64 = photo_b64.split(",", 1)[1]
+    
+    file_path = f"uploads/photos/{visit_id}_live.jpg"
+    
+    async with aiofiles.open(file_path, "wb") as f:
+        await f.write(base64.b64decode(photo_b64))
+    
+    return file_path

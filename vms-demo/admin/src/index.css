@@ -2,61 +2,60 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --gov-blue: #1a3c6e;
-  --gov-blue-light: #2a5298;
-  --gov-blue-bg: #eef2f9;
-  --gov-white: #ffffff;
-  --gov-orange: #e07b00;
-  --gov-green: #1a7a4a;
-  --gov-red: #c0392b;
-  --gov-amber: #c47d00;
-  --gov-gray: #f4f6f9;
-  --gov-border: #ccd6e8;
-  --gov-text: #1a1a2e;
-  --gov-text-secondary: #4a5568;
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html, body, #root {
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  body {
+    @apply bg-gov-bg text-gov-text font-sans antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
-body {
-  font-family: 'Noto Sans', sans-serif;
-  background-color: var(--gov-blue-bg);
-  color: var(--gov-text);
-  margin: 0;
-  overflow: hidden;
+@layer components {
+  .gov-card {
+    @apply bg-gov-surface border border-gov-border rounded-xl shadow-sm overflow-hidden;
+  }
+
+  .gov-button-primary {
+    @apply inline-flex items-center justify-center gap-2 bg-gov-primary text-white 
+           px-6 py-2.5 rounded-lg font-bold tracking-wide transition-all cursor-pointer 
+           active:scale-95 disabled:opacity-50 disabled:pointer-events-none 
+           shadow-sm hover:bg-gov-secondary;
+  }
+
+  .gov-button-secondary {
+    @apply inline-flex items-center justify-center gap-2 
+           border-2 border-gov-primary text-gov-primary px-6 py-2.5 rounded-lg font-bold 
+           tracking-wide transition-all cursor-pointer active:scale-95 disabled:opacity-50 
+           hover:bg-gov-primary hover:text-white;
+  }
+
+  .gov-input {
+    @apply w-full px-4 py-2.5 rounded-lg border-2 border-gov-border 
+           focus:border-gov-primary focus:outline-none transition-colors text-sm bg-white;
+  }
+
+  .hindi-text {
+    font-family: 'Noto Sans Devanagari', sans-serif;
+  }
 }
 
-.admin-card {
-  background-color: var(--gov-white);
-  border: 1px solid var(--gov-border);
-  border-radius: 12px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+/* Custom Table Shadows & Borders */
+.gov-table-row {
+  @apply transition-all hover:bg-slate-50/50;
 }
 
-/* Scrollbar Styling */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--gov-border);
-  border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #a0aec0;
-}
-
-/* Hover effects for dashboard metrics */
-.stat-card-hover {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.stat-card-hover:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  border-color: var(--gov-blue-light);
-}
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { @apply bg-slate-300 rounded-full; }
+::-webkit-scrollbar-thumb:hover { @apply bg-slate-400; }

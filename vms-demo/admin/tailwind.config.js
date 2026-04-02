@@ -8,16 +8,20 @@ export default {
     extend: {
       colors: {
         gov: {
-          blue: '#1a3c6e',
-          'blue-light': '#2a5298',
-          'blue-bg': '#eef2f9',
-          white: '#ffffff',
-          orange: '#e07b00',
-          green: '#1a7a4a',
-          red: '#c0392b',
-          amber: '#c47d00',
-          gray: '#f4f6f9',
-          border: '#ccd6e8',
+          primary: '#003366',
+          secondary: '#00509d',
+          accent: '#f97316',
+          bg: '#f1f5f9',
+          surface: '#ffffff',
+          text: '#1e293b',
+          'text-muted': '#64748b',
+          border: '#e2e8f0',
+          success: '#15803d',
+          error: '#b91c1c',
+          warning: '#b45309',
+          // Admin-specific
+          sidebar: '#003366',
+          'sidebar-hover': '#00509d',
         }
       },
       fontFamily: {

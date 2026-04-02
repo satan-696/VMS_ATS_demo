@@ -1,163 +1,166 @@
 import React, { useState } from 'react'
-import { CheckCircle2, Lock } from 'lucide-react'
+import { Check, ClipboardList, User, Calendar, MapPin, Search, ChevronRight } from 'lucide-react'
+
+const DEPARTMENTS = [
+  "Intelligence Bureau", "Home Ministry", "Communications Wing", 
+  "Operations Division", "Administration", "Legal Cell", 
+  "IT & Cyber Cell", "Visitor Reception", "Other"
+]
 
 function IdentityConfirm({ visitor, onConfirm, onBack }) {
-  const [details, setDetails] = useState({
-    purpose: '',
-    department: '',
-    host_officer: '',
-    duration: '< 1 Hour'
+  const [formData, setFormData] = useState({
+    purpose: visitor.purpose || '',
+    department: visitor.department || DEPARTMENTS[0],
+    host_officer: visitor.host_officer || ''
   })
 
-  const departments = ['Intelligence Bureau', 'Home Ministry', 'Communications', 'Operations', 'IT Services', 'Other']
-  const purposes = ['Official Meeting', 'Delivery', 'Interview', 'Maintenance', 'Personal Visit']
+  const [errors, setErrors] = useState({})
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    onConfirm(details)
+  const validate = () => {
+    const e = {}
+    if (!formData.purpose) e.purpose = "Purpose is required"
+    if (!formData.host_officer) e.host_officer = "Host name is required"
+    setErrors(e)
+    return Object.keys(e).length === 0
+  }
+
+  const handleConfirm = () => {
+    if (validate()) {
+      onConfirm(formData)
+    }
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col items-center space-y-6 sm:space-y-8">
-      <div className="space-y-2 text-center">
-        <h2 className="text-3xl font-display font-bold uppercase tracking-[0.12em] text-ats-success sm:text-4xl">
-          Credential Match Found
-        </h2>
-        <p className="text-[11px] font-mono uppercase tracking-[0.14em] text-slate-400 sm:text-xs">
-          Subject demographic profile extracted successfully
-        </p>
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="text-center space-y-2">
+        <h2 className="text-3xl font-extrabold text-gov-primary tracking-tight">Confirm Your Identity</h2>
+        <p className="text-gov-text-muted font-medium italic">कृपया अपनी पहचान की पुष्टि करें</p>
       </div>
 
-      <div className="glass-panel relative w-full overflow-hidden border border-ats-success/20 p-4 sm:p-6 lg:p-8">
-        <div className="absolute left-0 top-0 h-full w-1.5 bg-ats-success" />
-
-        <div className="flex flex-col gap-5 md:flex-row md:items-start md:gap-8">
-          <div className="relative mx-auto flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded border border-ats-accent/20 bg-slate-900 sm:h-36 sm:w-36 md:mx-0 md:h-40 md:w-40">
-            {visitor.photo_url ? (
-              <img
-                src={visitor.photo_url}
-                alt="Aadhaar photo"
-                className="h-full w-full object-cover brightness-110 grayscale transition-all duration-500 hover:grayscale-0"
-              />
-            ) : (
-              <div className="text-center">
-                <div className="text-3xl font-display font-bold text-ats-accent opacity-20 sm:text-4xl">{visitor.name?.[0]}</div>
-                <p className="mt-1 text-[8px] font-mono uppercase text-ats-accent/40">No static bio</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left Column: ID Data */}
+        <div className="lg:col-span-1 space-y-6">
+           <div className="gov-card flex flex-col items-center p-8 bg-blue-50/50">
+              <div className="w-40 h-40 bg-white rounded-2xl shadow-gov border-4 border-white overflow-hidden relative group">
+                 {visitor.reference_photo_base64 ? (
+                    <img 
+                      src={`data:image/jpeg;base64,${visitor.reference_photo_base64}`} 
+                      alt="Aadhaar Photo" 
+                      className="w-full h-full object-cover"
+                    />
+                 ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-300">
+                       <User className="w-16 h-16" />
+                    </div>
+                 )}
+                 <div className="absolute inset-0 bg-gov-primary/10 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
-            )}
-            <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-ats-bg to-transparent opacity-60" />
-          </div>
+              <div className="mt-6 text-center">
+                 <h3 className="text-2xl font-bold text-gov-primary uppercase leading-tight">{visitor.name}</h3>
+                 <div className="mt-4 inline-flex items-center gap-2 px-3 py-1 bg-gov-primary text-white rounded-full text-[10px] font-bold tracking-widest uppercase">
+                    Verified ID
+                 </div>
+              </div>
+           </div>
 
-          <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-x-8 sm:gap-y-5">
-            <div>
-              <p className="mb-1 text-[10px] font-mono uppercase tracking-[0.16em] text-slate-500">Subject Full Name</p>
-              <p className="text-xl font-display font-bold uppercase tracking-[0.08em] text-white sm:text-2xl">{visitor.name}</p>
-            </div>
-            <div>
-              <p className="mb-1 text-[10px] font-mono uppercase tracking-[0.16em] text-slate-500">Aadhaar Key</p>
-              <p className="flex items-center gap-2 text-base font-mono text-ats-accent sm:text-lg">
-                {visitor.aadhaarMasked} <Lock className="h-4 w-4 opacity-50" />
+           <div className="gov-card p-6 divide-y divide-gov-border">
+              <div className="py-3 flex items-start gap-4">
+                 <Calendar className="w-5 h-5 text-gov-accent shrink-0 mt-0.5" />
+                 <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Date of Birth</p>
+                    <p className="font-bold text-gov-primary mt-1">{visitor.dob}</p>
+                 </div>
+              </div>
+              <div className="py-3 flex items-start gap-4">
+                 <MapPin className="w-5 h-5 text-gov-accent shrink-0 mt-0.5" />
+                 <div className="flex-1">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Address</p>
+                    <p className="text-xs font-bold text-gov-primary leading-tight mt-1 line-clamp-3">{visitor.address || "New Delhi, India"}</p>
+                 </div>
+              </div>
+              <div className="py-3 flex items-start gap-4">
+                 <div className="w-5 h-5 flex items-center justify-center bg-gov-primary text-white rounded text-[8px] font-bold shrink-0 mt-0.5">UID</div>
+                 <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Aadhaar Number</p>
+                    <p className="font-mono text-xs tracking-[0.2em] font-bold text-gov-primary mt-1">XXXX-XXXX-{visitor.aadhaarMasked?.slice(-4) || "0000"}</p>
+                 </div>
+              </div>
+           </div>
+        </div>
+
+        {/* Right Column: Visit Details */}
+        <div className="lg:col-span-2 space-y-6">
+           <div className="gov-card p-10 space-y-8">
+              <div className="flex items-center gap-3 border-b-2 border-gov-bg pb-6">
+                 <div className="p-3 bg-gov-bg rounded-xl"><ClipboardList className="w-6 h-6 text-gov-primary" /></div>
+                 <h4 className="text-xl font-bold text-gov-primary uppercase tracking-tight">Meeting Details / बैठक का विवरण</h4>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                 <div className="col-span-2 sm:col-span-1 space-y-2">
+                    <label className="text-xs font-bold text-gov-primary uppercase tracking-widest leading-none">Department / विभाग</label>
+                    <select 
+                      className="gov-input bg-slate-50 border-transparent focus:bg-white"
+                      value={formData.department}
+                      onChange={e => setFormData({...formData, department: e.target.value})}
+                    >
+                       {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                 </div>
+                 <div className="col-span-2 sm:col-span-1 space-y-2">
+                    <label className="text-xs font-bold text-gov-primary uppercase tracking-widest leading-none">Host Officer / मेजबान अधिकारी</label>
+                    <div className="relative">
+                       <Search className="absolute left-4 top-4 w-5 h-5 text-slate-300 pointer-events-none" />
+                       <input 
+                        type="text" 
+                        required
+                        placeholder="e.g. Inspector Sharma"
+                        className={`gov-input bg-slate-50 border-transparent focus:bg-white pl-12 ${errors.host_officer ? 'border-red-400 focus:border-red-400 bg-red-50' : ''}`}
+                        value={formData.host_officer}
+                        onChange={e => setFormData({...formData, host_officer: e.target.value})}
+                       />
+                       {errors.host_officer && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 leading-none">{errors.host_officer}</p>}
+                    </div>
+                 </div>
+                 <div className="col-span-2 space-y-2">
+                    <label className="text-xs font-bold text-gov-primary uppercase tracking-widest leading-none">Purpose of Visit / मिलने का उद्देश्य</label>
+                    <textarea 
+                      required
+                      placeholder="Specify your business at ATS HQ..."
+                      className={`gov-input bg-slate-50 border-transparent focus:bg-white resize-none ${errors.purpose ? 'border-red-400 focus:border-red-400 bg-red-50' : ''}`}
+                      rows="4"
+                      value={formData.purpose}
+                      onChange={e => setFormData({...formData, purpose: e.target.value})}
+                    />
+                    {errors.purpose && <p className="text-[10px] text-red-500 font-bold uppercase mt-1 leading-none">{errors.purpose}</p>}
+                 </div>
+              </div>
+
+              <div className="pt-6">
+                 <button 
+                  onClick={handleConfirm}
+                  className="gov-button-primary w-full py-5 text-xl tracking-wide group flex items-center justify-center gap-2"
+                 >
+                   CONFIRM & PROCEED
+                   <ChevronRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                 </button>
+                 <button 
+                  onClick={onBack}
+                  className="w-full mt-4 text-xs font-bold uppercase text-gov-text-muted hover:text-gov-primary tracking-[0.2em]"
+                 >
+                   Incorrect Data? Scan Again
+                 </button>
+              </div>
+           </div>
+
+           <div className="flex items-center gap-4 px-6 py-4 bg-white/50 border border-dashed border-gov-border rounded-xl">
+              <Check className="w-5 h-5 text-gov-success" />
+              <p className="text-[10px] font-medium text-gov-text-muted uppercase tracking-widest">
+                Data securely matched with UIDAI e-Aadhaar records for <span className="text-gov-primary font-bold">NODE_VMS_ATS_HQ</span>
               </p>
-            </div>
-            <div>
-              <p className="mb-1 text-[10px] font-mono uppercase tracking-[0.16em] text-slate-500">Gender / DOB</p>
-              <p className="text-sm font-mono text-slate-300 sm:text-base">{visitor.gender} � {visitor.dob}</p>
-            </div>
-            <div className="sm:col-span-2">
-              <p className="mb-1 text-[10px] font-mono uppercase tracking-[0.16em] text-slate-500">Address Record</p>
-              <p className="text-xs font-mono uppercase leading-relaxed text-slate-400 sm:text-sm">{visitor.address}</p>
-            </div>
-          </div>
-
-          <div className="flex flex-row items-center justify-center gap-2 md:flex-col md:items-end">
-            <div className="flex items-center gap-2 rounded-full border border-ats-success/30 bg-ats-success/10 px-4 py-1 text-xs font-display font-bold text-ats-success shadow-[0_0_15px_rgba(16,185,129,0.1)] sm:text-sm">
-              <CheckCircle2 className="h-4 w-4 animate-pulse sm:h-5 sm:w-5" /> VERIFIED
-            </div>
-            <p className="text-[8px] font-mono uppercase tracking-widest text-slate-600">UIDAI-SIG: RSA-2048-OK</p>
-          </div>
+           </div>
         </div>
       </div>
-
-      <form onSubmit={handleSubmit} className="glass-panel w-full space-y-6 border-ats-accent/10 p-4 sm:p-6 lg:p-8">
-        <div className="flex flex-col gap-2 border-b border-ats-accent/10 pb-4 sm:flex-row sm:items-center sm:justify-between">
-          <h3 className="text-lg font-display font-bold uppercase tracking-[0.12em] text-white sm:text-xl">Visit Authorization Form</h3>
-          <span className="text-[10px] font-mono text-ats-accent/60">FORM-REF: ATS-VMS-114</span>
-        </div>
-
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-x-8 sm:gap-y-6">
-          <div className="space-y-2">
-            <label className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-500">Purpose of Visit *</label>
-            <select
-              required
-              className="h-12 w-full rounded border border-ats-accent/20 bg-slate-900 px-3 font-mono text-sm text-slate-300 transition-all focus:border-ats-accent focus:outline-none"
-              value={details.purpose}
-              onChange={(e) => setDetails({ ...details, purpose: e.target.value })}
-            >
-              <option value="" className="bg-ats-bg text-slate-600">Select Purpose</option>
-              {purposes.map((p) => (
-                <option key={p} value={p} className="bg-ats-bg text-slate-300">{p}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-500">Target Department *</label>
-            <select
-              required
-              className="h-12 w-full rounded border border-ats-accent/20 bg-slate-900 px-3 font-mono text-sm text-slate-300 transition-all focus:border-ats-accent focus:outline-none"
-              value={details.department}
-              onChange={(e) => setDetails({ ...details, department: e.target.value })}
-            >
-              <option value="" className="bg-ats-bg text-slate-600">Select Department</option>
-              {departments.map((d) => (
-                <option key={d} value={d} className="bg-ats-bg text-slate-300">{d}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-500">Host Officer Name *</label>
-            <input
-              type="text"
-              required
-              placeholder="ENTRY COMMANDER"
-              className="h-12 w-full rounded border border-ats-accent/20 bg-slate-900 px-3 font-mono text-sm text-white placeholder:text-slate-700 focus:border-ats-accent focus:outline-none"
-              value={details.host_officer}
-              onChange={(e) => setDetails({ ...details, host_officer: e.target.value })}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-500">Expected Op-Duration</label>
-            <select
-              className="h-12 w-full rounded border border-ats-accent/20 bg-slate-900 px-3 font-mono text-sm text-slate-300 focus:border-ats-accent focus:outline-none"
-              value={details.duration}
-              onChange={(e) => setDetails({ ...details, duration: e.target.value })}
-            >
-              <option value="< 1 Hour" className="bg-ats-bg text-slate-300">&lt; 1 Hour</option>
-              <option value="1-2 Hours" className="bg-ats-bg text-slate-300">1-2 Hours</option>
-              <option value="Half Day" className="bg-ats-bg text-slate-300">Half Day</option>
-              <option value="Full Day" className="bg-ats-bg text-slate-300">Full Day</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:gap-5">
-          <button
-            type="button"
-            onClick={onBack}
-            className="gov-btn gov-btn-secondary flex-1 border-ats-accent/30 text-xs uppercase tracking-widest text-ats-accent/60 transition-all hover:border-ats-accent hover:text-ats-accent"
-          >
-            Back
-          </button>
-          <button
-            type="submit"
-            className="gov-btn gov-btn-primary flex-[2] text-base shadow-[0_4px_25px_rgba(34,211,238,0.2)] sm:text-lg"
-          >
-            AUTHORIZE CLEARANCE
-          </button>
-        </div>
-      </form>
     </div>
   )
 }

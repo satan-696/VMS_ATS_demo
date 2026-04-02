@@ -3,6 +3,9 @@ from typing import Optional
 from datetime import datetime
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
@@ -57,7 +60,18 @@ class Visit(SQLModel, table=True):
     match_score: float
     risk_level: str  # LOW, MEDIUM, HIGH
     status: str  # PENDING, APPROVED, REJECTED
+    verification_type: Optional[str] = Field(default="aadhaar_ovse")
+    document_type: Optional[str] = Field(default=None)
+    document_photo_path: Optional[str] = Field(default=None)
+    ovse_client_id: Optional[str] = Field(default=None)
+    live_photo_path: Optional[str] = Field(default=None) # Mandatory for all visitors
+    aadhaar_photo_path: Optional[str] = Field(default=None) # From OVSE or DigiLocker
+    aadhaar_encrypted: Optional[str] = Field(default=None) # AES-256 for manual path
+    aadhaar_masked: Optional[str] = Field(default=None) # XXXX-XXXX-1234
+    pending_otp: Optional[str] = Field(default=None) # Relay for officer
+    otp_submitted_at: Optional[datetime] = Field(default=None)
     face_match_source: Optional[str] = "unknown"
+    liveness_source: Optional[str] = "unknown"
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class Blacklist(SQLModel, table=True):

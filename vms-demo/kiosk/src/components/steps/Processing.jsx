@@ -1,112 +1,80 @@
-import React, { useState, useEffect } from 'react'
-import { CheckCircle2, CircleDashed } from 'lucide-react'
+import React, { useEffect, useState } from 'react'
+import { Loader2, ShieldCheck, Search, Activity, CheckCircle2 } from 'lucide-react'
 
-function Processing({ onComplete, isMock = true }) {
-  const [steps, setSteps] = useState([
-    { id: 1, label: 'Aadhaar verified', status: 'done' },
-    { id: 2, label: 'Photo captured', status: 'done' },
-    { id: 3, label: 'Running face verification...', status: 'loading' },
-    { id: 4, label: 'Checking security database...', status: 'waiting' },
-    { id: 5, label: 'Calculating risk assessment...', status: 'waiting' },
-    { id: 6, label: 'Generating visitor pass...', status: 'waiting' }
-  ])
+function Processing({ onComplete, visitor }) {
+  const [currentStep, setCurrentStep] = useState(0)
+  const protocols = [
+    { id: 'liveness', label: 'Verifying liveness...', sub: 'सजीवता की जाँच' },
+    { id: 'biometric', label: 'Matching biometric signatures...', sub: 'बायोमेट्रिक डेटा मिलान' },
+    { id: 'blacklist', label: 'Scanning security database...', sub: 'सुरक्षा डेटाबेस स्कैन' },
+    { id: 'risk', label: 'Assessing risk level...', sub: 'जोखिम स्तर का आकलन' },
+    { id: 'finalize', label: 'Finalizing credentials...', sub: 'क्रेडेंशियल्स को अंतिम रूप' }
+  ]
 
   useEffect(() => {
-    const sequence = async () => {
-      for (let i = 2; i < steps.length; i += 1) {
-        await new Promise((r) => setTimeout(r, 1500))
-        setSteps((prev) =>
-          prev.map((s, idx) => {
-            if (idx === i) return { ...s, status: 'done' }
-            if (idx === i + 1) return { ...s, status: 'loading' }
-            return s
-          })
-        )
+    let timer
+    const advance = (idx) => {
+      if (idx < protocols.length) {
+        timer = setTimeout(() => {
+          setCurrentStep(idx + 1)
+          advance(idx + 1)
+        }, 1200 + Math.random() * 800)
+      } else {
+        onComplete()
       }
-      await new Promise((r) => setTimeout(r, 1000))
-      onComplete()
     }
-
-    sequence()
-  }, [])
+    advance(0)
+    return () => clearTimeout(timer)
+  }, [onComplete])
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col items-center justify-center space-y-8">
-      <div className="space-y-2 text-center">
-        <h2 className="text-3xl font-display font-bold uppercase tracking-[0.12em] text-white sm:text-4xl">System Review</h2>
-        
-        {/* Verification Status Banner */}
-        <div className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 font-mono text-[10px] uppercase tracking-widest shadow-lg sm:text-xs">
-          {isMock ? (
-            <>
-              <div className="h-2 w-2 animate-pulse rounded-full bg-amber-500" />
-              <span className="text-amber-500">⚠ DEMO MODE — Simulated verification</span>
-            </>
-          ) : (
-            <>
-              <div className="h-2 w-2 animate-pulse rounded-full bg-ats-success" />
-              <span className="text-ats-success">🔴 LIVE — Connected to UIDAI via Signzy</span>
-            </>
-          )}
+    <div className="flex flex-col items-center justify-center p-12 space-y-12 animate-in fade-in duration-700">
+      <div className="relative">
+        <div className="absolute -inset-10 bg-gov-primary/5 rounded-full animate-ping" />
+        <div className="relative bg-white p-12 rounded-full shadow-gov-lg border-2 border-gov-primary overflow-hidden">
+           <Loader2 className="w-24 h-24 text-gov-primary animate-spin" />
+           <div className="absolute inset-0 flex items-center justify-center">
+              <ShieldCheck className="w-10 h-10 text-gov-accent opacity-50" />
+           </div>
         </div>
-
-        <p className="mt-4 text-[10px] font-mono uppercase tracking-widest text-slate-500 sm:text-xs">
-          Executing multi-layered security protocols
-        </p>
       </div>
 
-      <div className="glass-panel relative w-full space-y-3 border-ats-accent/20 p-4 sm:space-y-4 sm:p-6 lg:p-8">
-        <div className="absolute left-0 top-0 h-0.5 w-full bg-ats-accent/10" />
+      <div className="space-y-3 text-center">
+        <h2 className="text-3xl font-extrabold text-gov-primary tracking-tight">Security Protocol in Progress</h2>
+        <p className="text-gov-text-muted font-medium italic">सुरक्षा प्रोटोकॉल प्रक्रिया में है</p>
+      </div>
 
-        {steps.map((step) => (
-          <div key={step.id} className="flex flex-col gap-2 rounded border border-transparent p-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3 sm:items-center sm:gap-5">
-              {step.status === 'done' ? (
-                <div className="rounded-full border border-ats-success/30 bg-ats-success/10 p-1">
-                  <CheckCircle2 className="h-5 w-5 text-ats-success sm:h-6 sm:w-6" />
-                </div>
-              ) : step.status === 'loading' ? (
-                <div className="relative">
-                  <div className="absolute inset-0 rounded-full bg-ats-accent/20 blur-sm animate-pulse" />
-                  <CircleDashed className="relative z-10 h-6 w-6 animate-spin text-ats-accent sm:h-7 sm:w-7" />
-                </div>
-              ) : (
-                <div className="h-6 w-6 rounded-full border border-slate-800 bg-slate-900 sm:h-7 sm:w-7" />
-              )}
-
-              <span
-                className={`font-mono text-sm sm:text-base ${
-                  step.status === 'done'
-                    ? 'text-slate-200'
-                    : step.status === 'loading'
-                      ? 'animate-pulse text-ats-accent'
-                      : 'text-slate-700'
-                }`}
-              >
-                {step.status === 'loading' ? `[RUNNING] ${step.label}` : step.label}
-              </span>
+      <div className="w-full max-w-sm space-y-4">
+        {protocols.map((p, idx) => (
+          <div 
+            key={p.id}
+            className={`flex items-center gap-4 transition-all duration-500 ${idx === currentStep ? 'opacity-100 scale-105' : idx < currentStep ? 'opacity-40 scale-100' : 'opacity-20 translate-y-2'}`}
+          >
+            <div className={`p-2 rounded-lg transition-colors ${idx < currentStep ? 'bg-gov-success text-white' : idx === currentStep ? 'bg-gov-primary text-white shadow-lg animate-pulse' : 'bg-slate-200 text-slate-400'}`}>
+               {idx < currentStep ? <CheckCircle2 className="w-5 h-5" /> : idx === currentStep ? <Search className="w-5 h-5" /> : <Activity className="w-5 h-5" />}
             </div>
-
-            <div className="text-[10px] font-mono font-bold tracking-[0.16em] sm:text-xs">
-              {step.status === 'done' ? (
-                <span className="rounded border border-ats-success/20 bg-ats-success/5 px-2 py-1 text-ats-success">OK_SUCCESS</span>
-              ) : step.status === 'loading' ? (
-                <span className="rounded border border-ats-accent/20 px-2 py-1 text-ats-accent animate-pulse">IN_PROGRESS</span>
-              ) : (
-                <span className="rounded border border-slate-900 px-2 py-1 text-slate-700">QUEUED</span>
-              )}
+            <div className="flex-1">
+               <p className={`text-sm font-bold uppercase tracking-widest ${idx === currentStep ? 'text-gov-primary' : 'text-slate-500'}`}>
+                  {p.label}
+               </p>
+               <p className="text-[10px] font-bold text-slate-400 mb-0.5">{p.sub}</p>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="flex flex-col items-center gap-3">
-        <div className="relative h-0.5 w-40 overflow-hidden bg-slate-900 sm:w-48">
-          <div className="absolute inset-y-0 left-0 w-1/3 animate-[slide_2s_infinite] bg-ats-accent" />
-        </div>
-        <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500 sm:text-xs">
-          Identity verification sequence active
-        </p>
+      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-gov-border shadow-inner">
+         <div 
+          className="h-full bg-gov-primary transition-all duration-700 ease-out shadow-[0_0_10px_rgba(0,51,102,0.3)]"
+          style={{ width: `${(currentStep / protocols.length) * 100}%` }}
+         />
+      </div>
+
+      <div className="flex items-center gap-4 px-6 py-3 bg-blue-50 border border-blue-100 rounded-full">
+         <div className="w-2 h-2 rounded-full bg-gov-accent animate-pulse" />
+         <p className="text-[10px] font-bold text-gov-primary uppercase tracking-widest leading-none">
+            Processing Verified Node: NODE_VMS_ATS_HQ_SECURED
+         </p>
       </div>
     </div>
   )

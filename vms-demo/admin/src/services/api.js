@@ -10,5 +10,6 @@ export const rejectVisit = (visitId) => api.post(`/approvals/${visitId}/reject`)
 export const resetDemo = () => api.post('/demo/reset')
 export const getStats = () => api.get('/stats')
 export const getVisitLog = () => api.get('/visits')
+export const getManualAadhaarData = (visitId) => api.get(`/aadhaar/manual-otp/aadhaar/${visitId}`)
 
 export default api
