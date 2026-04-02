@@ -8,3 +8,4 @@ httpx
 alembic
 python-multipart
 aiofiles
+cryptography
